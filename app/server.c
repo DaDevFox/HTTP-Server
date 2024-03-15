@@ -22,6 +22,7 @@ int main()
 	int server_fd, client_addr_len;
 	struct sockaddr_in client_addr;
 
+    // AF_INET specifies address families usable on the internet and SOCK_STREAM specifies a two-way TCP connection via a byte stream
 	server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd == -1)
 	{
@@ -34,13 +35,13 @@ int main()
 	int reuse = 1;
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
 	{
-		printf("SO_REUSEPORT failed: %s \n", strerror(errno));
+		printf("SO_REUSEADDR failed: %s \n", strerror(errno));
 		return 1;
 	}
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(4221),
+		.sin_port = htons(4221),    // converts from host-represented 4221 in its byte order to " network represented
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
 
