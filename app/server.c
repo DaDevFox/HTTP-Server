@@ -12,6 +12,9 @@
 #include <errno.h>
 #include <unistd.h>
 
+char *response_good = "HTTP/1.1 200 OK\r\n\r\n";
+
+
 int main()
 {
 	// Disable output buffering
@@ -44,7 +47,7 @@ int main()
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(4221),    // converts from host-represented 4221 in its byte order to " network-represented
+		.sin_port = htons(4221),    // converts from host-represented 4221 (short) in its byte order to " network-represented
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
 
@@ -66,6 +69,16 @@ int main()
 
 	accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 	printf("Client connected\n");
+
+    char response_buffer[256];
+    if(read(server_fd, response_buffer, 256) < 1)
+    {
+        printf("Read failed: %s \n", strerror(errno));
+        return 1;
+    }
+
+    send(server_fd, response_good, strlen(response_good), 0);
+
 
 	close(server_fd);
 
