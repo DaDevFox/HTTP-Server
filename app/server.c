@@ -117,7 +117,7 @@ void server_run(const int server_fd){
 
 void respond(const int client_fd, char *response_body, int response_len)
 {
-    if (send(client_fd, response_body, response_len, 0) == -1) {
+    if (send(client_fd, response_body, response_len, 0) <0) {
         printf("Error responding to client: %s\n", strerror(errno));
     }
 }
@@ -136,7 +136,7 @@ void HTTP_GET(int client_fd, char *message, int max_message_length) {
     message += path_len; // don't offset so we cull the space
     char *http_version = message; // now after the http mode specifier since prior method consumed
     int http_version_len = 8;
-    printf("with HTTP version %s", message);
+//    printf("with HTTP version %s", message);
 
     // consume until newline
     while(strncmp(message++, "\r\n", 2)){}
@@ -144,7 +144,7 @@ void HTTP_GET(int client_fd, char *message, int max_message_length) {
 
     // TODO: process headers
 
-    if(strcmp(path, "/") == 0)
+    if(strncmp(path, "/", 1) == 0)
         respond(client_fd, response_good, strlen(response_good));
     else
         respond(client_fd, response_404, strlen(response_404));
