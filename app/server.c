@@ -144,7 +144,8 @@ void HTTP_GET(int client_fd, char *message, int max_message_length) {
 
     // TODO: process headers
 
-    if(strncmp(path, "/", 1) == 0)
+
+    if(strncmp(path, "/", path_len - 1) == 0)
         respond(client_fd, response_good, strlen(response_good));
     else
         respond(client_fd, response_404, strlen(response_404));
