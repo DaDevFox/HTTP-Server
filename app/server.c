@@ -100,7 +100,11 @@ void server_run(const int server_fd){
         printf("Client connected\n");
 
         char data_buffer[256];
+#if defined(_WIN32) || defined(_WIN64)
         if(recv(client_fd, data_buffer, 256, 0) == SOCKET_ERROR)
+#else
+        if(recv(client_fd, data_buffer, 256, 0) == SO_ERROR)
+#endif
             printf("No data read from client\n\n");
         else
             printf("Data read from client: %s\n", data_buffer);
