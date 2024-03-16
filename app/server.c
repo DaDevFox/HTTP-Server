@@ -91,7 +91,7 @@ int server_listen_socket(int *server_fd){
 }
 
 void server_run(const int server_fd){
-    while(1) {
+//    while(1) {
         printf("Waiting for a client to connect...\n");
         struct sockaddr_in client_addr;
         int client_addr_len = sizeof(client_addr);
@@ -108,7 +108,7 @@ void server_run(const int server_fd){
         HTTP_process(client_fd, data_buffer, 256);
 
         close(client_fd);
-    }
+//    }
 }
 
 void respond(const int client_fd, char *response_body, int response_len)
