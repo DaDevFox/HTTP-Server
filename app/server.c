@@ -12,88 +12,182 @@
 #include <errno.h>
 #include <unistd.h>
 
+enum HTTP_METHOD{
+    GET,
+    HEAD,
+    POST,
+    PUT
+};
+
 char *response_good = "HTTP/1.1 200 OK\r\n\r\n";
+char *response_404 = "HTTP/1.1 404 Not Found\r\n\r\n";
 
+int server_init();
+int server_listen_socket(int *server_fd);
+void server_run(const int server_fd);
+void respond(const int client_fd, char *resposne_body, int response_len);
 
-int main()
-{
-	// Disable output buffering
-	setbuf(stdout, NULL);
+void HTTP_GET(int client_fd, char message[], int max_message_length);
+void HTTP_process(int client_fd, char message[], int max_message_length);
+
+// Returns 0 on error
+int server_init(){
+    // Disable output buffering
+    setbuf(stdout, NULL);
 
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA wsaData;
-
     if (WSAStartup(MAKEWORD(1,1), &wsaData) == SOCKET_ERROR) {
         printf ("Error initialising WSA.\n");
-        return -1;
+        return 0;
     }
 #endif
 
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-	printf("Logs from your program will appear here!\n");
+    return 1;
+}
 
-	// Uncomment this block to pass the first stage
-
-	int server_fd, client_addr_len;
-	struct sockaddr_in client_addr;
-
+int server_listen_socket(int *server_fd){
     // AF_INET specifies address families usable on the internet and SOCK_STREAM specifies a two-way TCP connection via a byte stream
-	server_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (server_fd == -1)
-	{
+    *server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (*server_fd == -1)
+    {
 #if defined(_WIN32) || defined(_WIN64)
         printf("Socket creation failed: %d/%s...\n", WSAGetLastError(), strerror(WSAGetLastError()));
 #else
-		printf("Socket creation failed: %s...\n", strerror(errno));
+        printf("Socket creation failed: %s...\n", strerror(errno));
 #endif
-		return 1;
-	}
-
-	// Since the tester restarts your program quite often, setting REUSE_PORT
-	// ensures that we don't run into 'Address already in use' errors
-	int reuse = 1;
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
-	{
-		printf("SO_REUSEADDR failed: %s \n", strerror(errno));
-		return 1;
-	}
-
-	struct sockaddr_in serv_addr = {
-		.sin_family = AF_INET,
-		.sin_port = htons(4221),    // converts from host-represented 4221 (short) in its byte order to " network-represented
-		.sin_addr = {htonl(INADDR_ANY)},
-	};
-
-	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0)
-	{
-		printf("Bind failed: %s \n", strerror(errno));
-		return 1;
-	}
-
-	int connection_backlog = 5;
-	if (listen(server_fd, connection_backlog) != 0)
-	{
-		printf("Listen failed: %s \n", strerror(errno));
-		return 1;
-	}
-
-	printf("Waiting for a client to connect...\n");
-	client_addr_len = sizeof(client_addr);
-
-	int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-	printf("Client connected\n");
-
-    char data_buffer[256];
-    if(read(client_fd, data_buffer, 256) < 1)
-        printf("No data read from client\n");
-    else
-        printf("Data read from client: %s\n", data_buffer);
-
-    if(send(client_fd, response_good, (int)strlen(response_good), 0) == -1){
-        printf("Error responding to client: %s\n", strerror(errno));
+        return 0;
     }
 
-    close(client_fd);
+    // Since the tester restarts your program quite often, setting REUSE_PORT
+    // ensures that we don't run into 'Address already in use' errors
+    int reuse = 1;
+    if (setsockopt(*server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+    {
+        printf("SO_REUSEADDR failed: %s \n", strerror(errno));
+        return 0;
+    }
+
+    struct sockaddr_in serv_addr = {
+            .sin_family = AF_INET,
+            .sin_port = htons(4221),    // converts from host-represented 4221 (short) in its byte order to " network-represented
+            .sin_addr = {htonl(INADDR_ANY)},
+    };
+
+    if (bind(*server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0)
+    {
+        printf("Bind failed: %s \n", strerror(errno));
+        return 0;
+    }
+
+    int connection_backlog = 5;
+    if (listen(*server_fd, connection_backlog) != 0)
+    {
+        printf("Listen failed: %s \n", strerror(errno));
+        return 0;
+    }
+
+    return 1;
+}
+
+void server_run(const int server_fd){
+    while(1) {
+        printf("Waiting for a client to connect...\n");
+        struct sockaddr_in client_addr;
+        int client_addr_len = sizeof(client_addr);
+
+        int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_len);
+        printf("Client connected\n");
+
+        char data_buffer[256];
+        if (read(client_fd, data_buffer, 256) < 1)
+            printf("No data read from client\n");
+        else
+            printf("Data read from client: %s\n", data_buffer);
+
+        HTTP_process(client_fd, data_buffer, 256);
+
+        close(client_fd);
+    }
+}
+
+void respond(const int client_fd, char *response_body, int response_len)
+{
+    if (send(client_fd, response_body, response_len, 0) == -1) {
+        printf("Error responding to client: %s\n", strerror(errno));
+    }
+}
+
+void HTTP_GET(int client_fd, char *message, int max_message_length) {
+    // START LINE
+    printf("HTTP GET; ");
+
+    // set path
+    char *path = message; // now after the http mode specifier since prior method consumed
+    int path_len = 0;
+    while(message[path_len++] != ' '){}
+    path_len--; // cull the space itself (not needed)
+    printf("for path %.*s ", path_len, message);
+
+    // set http version
+    message += path_len;
+    char *http_version = message; // now after the http mode specifier since prior method consumed
+    int http_version_len = 8;
+    printf("with HTTP version %s", message);
+
+    // consume until newline
+    while(strncmp(message++, "\r\n", 2)){}
+    message++; // pushes it past the \n and onto next line
+
+    // TODO: process headers
+
+    if(strcmp(path, "/") == 0)
+        respond(client_fd, response_good, strlen(response_good));
+    else
+        respond(client_fd, response_404, strlen(response_404));
+}
+
+// returns -1 on fail; consumes first word if consume param is nonzero
+enum HTTP_METHOD HTTP_get_method(char **message, int *max_message_length, int consume){
+    // get first space in message (should be after request)
+    int i = 0;
+    while((*message)[i++] != ' '){}
+
+    if(consume) {
+        *message += i;
+        *max_message_length -= i;
+    }
+
+    if(strncmp(*message, "GET", i) == 0)
+        return GET;
+    if(strncmp(*message, "HEAD", i) == 0)
+        return HEAD;
+    if(strncmp(*message, "POST", i) == 0)
+        return POST;
+    if(strncmp(*message, "PUT", i) == 0)
+        return PUT;
+
+    return -1;
+}
+
+
+void HTTP_process(int client_fd, char message[], int max_message_length){
+    enum HTTP_METHOD method = HTTP_get_method(&message, &max_message_length, 1);
+    if(method == GET)
+        HTTP_GET(client_fd, message, max_message_length);
+}
+
+int main()
+{
+    if(!server_init())
+        return 1;
+
+	int server_fd;
+    if(!server_listen_socket(&server_fd))
+        return 1;
+
+    server_run(server_fd);
+
     close(server_fd);
 	return 0;
 }
