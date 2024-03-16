@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef __WIN32__
+#if defined(_WIN32) || defined(_WIN64)
 # include <winsock2.h>
 #else
 # include <sys/socket.h>
@@ -33,7 +33,7 @@ int main()
 	// Since the tester restarts your program quite often, setting REUSE_PORT
 	// ensures that we don't run into 'Address already in use' errors
 	int reuse = 1;
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
 	{
 		printf("SO_REUSEADDR failed: %s \n", strerror(errno));
 		return 1;
@@ -41,7 +41,7 @@ int main()
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(4221),    // converts from host-represented 4221 in its byte order to " network represented
+		.sin_port = htons(4221),    // converts from host-represented 4221 in its byte order to " network-represented
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
 
