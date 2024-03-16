@@ -4,6 +4,9 @@
 # include <winsock2.h>
 #else
 # include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #endif
 #include <string.h>
 #include <errno.h>
