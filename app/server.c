@@ -158,6 +158,8 @@ enum HTTP_METHOD HTTP_get_method(char **message, int *max_message_length, int co
         *max_message_length -= i;
     }
 
+    printf("%.*s", i, *message);
+
     if(strncmp(*message, "GET", i) == 0)
         return GET;
     if(strncmp(*message, "HEAD", i) == 0)
