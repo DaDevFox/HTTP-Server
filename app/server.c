@@ -238,7 +238,7 @@ void HTTP_GET(int client_fd, char *message, int max_message_length) {
             int body_size = 0;
             while(path[body_size] != ' ') body_size++;
             char *body = malloc(body_size);
-            sprintf_s(body, body_size, "%.*s", body_size, path);
+            snprintf(body, body_size, "%.*s", body_size, path);
             printf("%d, %.*s\n", body_size,body_size, path);
             printf("%d, %s\n", body_size, body);
 
